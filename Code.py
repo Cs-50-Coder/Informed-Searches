@@ -417,3 +417,188 @@ class PathfindingApp:
             t = self.font_md.render(letter, True, COLOR_TEXT)
             self.screen.blit(t, t.get_rect(center=(cx, cy)))
 
+    # Draw Panel
+    def draw_panel(self):
+        panel_x = GRID_AREA_W   
+
+        pygame.draw.rect(self.screen, COLOR_PANEL_BG,
+                         (panel_x, 0, PANEL_W, WINDOW_H))
+
+        x  = panel_x + 10   
+        iw = PANEL_W - 20    
+        y  = 10              
+
+        btn = {}
+
+        # Sub Helpers
+        def heading(text):
+            nonlocal y
+            s = self.font_lg.render(text, True, COLOR_ACCENT)
+            self.screen.blit(s, (x, y))
+            y += s.get_height() + 3
+
+        def small_label(text, color=COLOR_TEXT):
+            nonlocal y
+            s = self.font_sm.render(text, True, color)
+            self.screen.blit(s, (x, y))
+            y += s.get_height() + 2
+
+        def gap(n):
+            nonlocal y
+            y += n
+
+        def separator():
+            nonlocal y
+            pygame.draw.line(self.screen, COLOR_SEPARATOR,
+                             (x, y), (x + iw, y))
+            y += 5
+
+        def full_btn(name, label, color=COLOR_BTN, h=25):
+            nonlocal y
+            r = self._draw_btn(label, (x, y, iw, h), color)
+            btn[name] = r
+            y += h + 3
+
+        def half_btns(name_l, lbl_l, active_l, name_r, lbl_r, active_r, h=25):
+            nonlocal y
+            hw = (iw - 4) // 2
+            col_l = COLOR_BTN_ACTIVE if active_l else COLOR_BTN
+            col_r = COLOR_BTN_ACTIVE if active_r else COLOR_BTN
+            btn[name_l] = self._draw_btn(lbl_l, (x,          y, hw, h), col_l)
+            btn[name_r] = self._draw_btn(lbl_r, (x + hw + 4, y, hw, h), col_r)
+            y += h + 3
+
+        def input_row(key, value, label_text):
+            nonlocal y
+            box, y = self._draw_input(key, value, label_text, x, y, iw)
+            btn["inp_" + key] = box
+
+
+        heading("PATHFINDING AGENT")
+        gap(2)
+
+        # Algorithm
+        small_label("Algorithm  (1=A*  2=GBFS):", COLOR_DIM_TEXT)
+        half_btns("btn_astar", "A*",   self.algorithm == "A*",
+                  "btn_gbfs",  "GBFS", self.algorithm == "GBFS")
+        gap(2)
+
+        # Heuristic
+        small_label("Heuristic  (M=Manh  E=Eucl):", COLOR_DIM_TEXT)
+        half_btns("btn_manh", "Manhattan", self.heuristic_name == "Manhattan",
+                  "btn_eucl", "Euclidean", self.heuristic_name == "Euclidean")
+        gap(4)
+        separator()
+
+        # Grid size
+        small_label("Grid Size (5 to 40):", COLOR_DIM_TEXT)
+        input_row("rows", self.input_rows, "Rows:")
+        input_row("cols", self.input_cols, "Cols:")
+        full_btn("btn_resize", "Resize Grid")
+
+        # Map buttons
+        full_btn("btn_random", "Random Maze  [R]", (80, 80, 30))
+        full_btn("btn_clear",  "Clear Grid   [C]")
+        gap(4)
+        separator()
+
+        # Move start / goal
+        small_label("Move Start or Goal:", COLOR_DIM_TEXT)
+        half_btns("btn_set_start", "Set Start [S]", self.placing_start,
+                  "btn_set_goal",  "Set Goal  [G]", self.placing_goal)
+
+        if self.placing_start:
+            small_label("  >> Click grid to place Start", (255, 220, 80))
+        elif self.placing_goal:
+            small_label("  >> Click grid to place Goal",  (255, 220, 80))
+        else:
+            gap(14)   
+
+        gap(2)
+        separator()
+
+        full_btn("btn_run", "RUN SEARCH  [SPACE]", COLOR_BTN_RUN, h=28)
+        dyn_lbl   = "Dynamic: ON  [D]" if self.dynamic_mode else "Dynamic: OFF [D]"
+        dyn_color = COLOR_BTN_DYN_ON if self.dynamic_mode else COLOR_BTN
+        full_btn("btn_dynamic", dyn_lbl, dyn_color)
+        gap(4)
+        separator()
+
+        # Metrics
+        heading("METRICS")
+        small_label(f"  Nodes Visited : {self.nodes_visited}")
+        small_label(f"  Path Length   : {self.path_length}")
+        small_label(f"  Search Time   : {self.time_ms:.3f} ms")
+        gap(2)
+
+        # Status
+        if self.is_searching:
+            small_label("  Status : Searching...", (255, 215, 0))
+        elif self.no_path_found:
+            small_label("  Status : No path found!", (255, 80, 80))
+        elif self.search_done:
+            small_label("  Status : Path found!", (80, 230, 110))
+        else:
+            small_label("  Status : Ready", COLOR_DIM_TEXT)
+
+        small_label(f"  Start : {self.start_cell}", COLOR_DIM_TEXT)
+        small_label(f"  Goal  : {self.goal_cell}",  COLOR_DIM_TEXT)
+        gap(4)
+        separator()
+
+        # Legend
+        heading("LEGEND")
+        legend = [
+            (COLOR_START,    "Start (S)"),
+            (COLOR_GOAL,     "Goal  (G)"),
+            (COLOR_WALL,     "Wall"),
+            (COLOR_FRONTIER, "Frontier (yellow)"),
+            (COLOR_VISITED,  "Visited  (blue)"),
+            (COLOR_PATH,     "Path     (green)"),
+        ]
+        for color, name in legend:
+            pygame.draw.rect(self.screen, color, (x, y, 12, 12))
+            pygame.draw.rect(self.screen, (140, 140, 140), (x, y, 12, 12), 1)
+            s = self.font_sm.render(name, True, COLOR_TEXT)
+            self.screen.blit(s, (x + 16, y))
+            y += 15
+
+        # Save for click detection
+        self.btn = btn
+
+    def _handle_panel_click(self, pos):
+        b = self.btn
+
+        def hit(name):
+            return name in b and b[name].collidepoint(pos)
+
+        if hit("btn_astar"):
+            self.algorithm = "A*";   self._reset_search()
+        elif hit("btn_gbfs"):
+            self.algorithm = "GBFS"; self._reset_search()
+        elif hit("btn_manh"):
+            self.heuristic_fn = heuristic_manhattan; self.heuristic_name = "Manhattan"; self._reset_search()
+        elif hit("btn_eucl"):
+            self.heuristic_fn = heuristic_euclidean; self.heuristic_name = "Euclidean"; self._reset_search()
+        elif hit("btn_resize"):
+            self._resize_grid()
+        elif hit("btn_random"):
+            self._random_maze()
+        elif hit("btn_clear"):
+            self._clear_grid()
+        elif hit("btn_set_start"):
+            self.placing_start = not self.placing_start
+            self.placing_goal  = False
+        elif hit("btn_set_goal"):
+            self.placing_goal  = not self.placing_goal
+            self.placing_start = False
+        elif hit("btn_run"):
+            self._start_search()
+        elif hit("btn_dynamic"):
+            self.dynamic_mode = not self.dynamic_mode
+        elif hit("inp_rows"):
+            self.focused_input = "rows"
+        elif hit("inp_cols"):
+            self.focused_input = "cols"
+        else:
+            self.focused_input = None
