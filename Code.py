@@ -602,3 +602,144 @@ class PathfindingApp:
             self.focused_input = "cols"
         else:
             self.focused_input = None
+
+    # Main Loop
+    def run(self):
+        clock = pygame.time.Clock()
+
+        while True:
+            now = pygame.time.get_ticks()
+
+            # Events
+            for event in pygame.event.get():
+
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+                # Keyboard
+                if event.type == pygame.KEYDOWN:
+
+                    if self.focused_input is not None:
+                        if event.key in (pygame.K_RETURN, pygame.K_ESCAPE):
+                            self.focused_input = None
+                        elif event.key == pygame.K_BACKSPACE:
+                            if self.focused_input == "rows":
+                                self.input_rows = self.input_rows[:-1]
+                            else:
+                                self.input_cols = self.input_cols[:-1]
+                        elif event.unicode.isdigit():
+                            if self.focused_input == "rows":
+                                self.input_rows += event.unicode
+                            else:
+                                self.input_cols += event.unicode
+
+                    else:
+                        k = event.key
+                        if   k == pygame.K_SPACE: self._start_search()
+                        elif k == pygame.K_r:     self._random_maze()
+                        elif k == pygame.K_c:     self._clear_grid()
+                        elif k == pygame.K_d:     self.dynamic_mode = not self.dynamic_mode
+                        elif k == pygame.K_1:     self.algorithm = "A*";   self._reset_search()
+                        elif k == pygame.K_2:     self.algorithm = "GBFS"; self._reset_search()
+                        elif k == pygame.K_m:
+                            self.heuristic_fn = heuristic_manhattan
+                            self.heuristic_name = "Manhattan"
+                            self._reset_search()
+                        elif k == pygame.K_e:
+                            self.heuristic_fn = heuristic_euclidean
+                            self.heuristic_name = "Euclidean"
+                            self._reset_search()
+                        elif k == pygame.K_s:
+                            # Toggle place-start mode
+                            self.placing_start = not self.placing_start
+                            self.placing_goal  = False
+                        elif k == pygame.K_g:
+                            # Toggle place-goal mode
+                            self.placing_goal  = not self.placing_goal
+                            self.placing_start = False
+                        elif k == pygame.K_ESCAPE:
+                            self.placing_start = False
+                            self.placing_goal  = False
+                            self.focused_input = None
+                            self._reset_search()
+
+                # Mouse Click
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mx, my = event.pos
+
+                    if mx >= GRID_AREA_W:
+                        self.draw_panel()
+                        self._handle_panel_click((mx, my))
+
+                    else:
+                        cell = self._cell_from_mouse(mx, my)
+                        if cell is None:
+                            pass 
+
+                        elif self.placing_start:
+                            row, col = cell
+                            self.grid[row][col] = 0   
+                            self.start_cell    = cell
+                            self.placing_start = False
+                            self._reset_search()
+
+                        elif self.placing_goal:
+                            row, col = cell
+                            self.grid[row][col] = 0
+                            self.goal_cell    = cell
+                            self.placing_goal = False
+                            self._reset_search()
+
+                        elif event.button == 1:
+                            # Left click -> place wall 
+                            if cell not in (self.start_cell, self.goal_cell):
+                                row, col = cell
+                                self.grid[row][col] = 1
+                                self._reset_search()
+
+                        elif event.button == 3:
+                            # Right click -> erase wall
+                            row, col = cell
+                            self.grid[row][col] = 0
+                            self._reset_search()
+
+                # Mouse Drag
+                if event.type == pygame.MOUSEMOTION:
+                    mx, my = event.pos
+                    # Only draw/erase walls when dragging in the grid area
+                    if mx < GRID_AREA_W and not self.placing_start and not self.placing_goal:
+                        cell = self._cell_from_mouse(mx, my)
+                        if cell and cell not in (self.start_cell, self.goal_cell):
+                            row, col = cell
+                            left, _, right = pygame.mouse.get_pressed()
+                            if left and self.grid[row][col] != 1:
+                                self.grid[row][col] = 1
+                                self._reset_search()
+                            elif right and self.grid[row][col] != 0:
+                                self.grid[row][col] = 0
+                                self._reset_search()
+
+            # Search animation step
+            if self.is_searching and (now - self._last_search_step > SEARCH_STEP_MS):
+                self._do_one_search_step()
+                self._last_search_step = now
+
+            # Dynamic obstacle spawns
+            if (self.dynamic_mode
+                    and self.search_done
+                    and not self.no_path_found
+                    and not self.is_searching
+                    and (now - self._last_dyn_spawn > DYN_SPAWN_INTERVAL_MS)):
+                self._spawn_obstacles()
+                self._last_dyn_spawn = now
+
+            # Drawing
+            self.screen.fill(COLOR_BG)
+            self.draw_grid()
+            self.draw_panel()
+            pygame.display.flip()
+            clock.tick(FPS)
+
+
+PathfindingApp().run()
