@@ -5,7 +5,6 @@ This repository visually shows how the listed informed searches work.
   <li>A*</li>
 </ul>
 <pre><h2>Dynamic Pathfinding Agent</h2>
-<hr>
 
 HOW TO USE:
   - Draw walls  : left-click and drag on the grid
