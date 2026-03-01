@@ -1,5 +1,9 @@
 # Informed-Searches
 This repository visually shows how the listed informed searches work.
+<ul>
+  <li>Greedy Best First Search</li>
+  <li>A*</li>
+</ul>
 <pre>Dynamic Pathfinding Agent
 =========================
 
