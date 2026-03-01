@@ -4,13 +4,20 @@ This repository visually shows how the listed informed searches work.
   <li>Greedy Best First Search</li>
   <li>A*</li>
 </ul>
+<p>Following Libraries are a requirement:</p>
+<ul>
+  <li>pygame</li>
+  <li>sys</li>
+  <li>math</li>
+  <li>heapq</li>
+  <li>random</li>
+  <li>time</li>
+</ul>
 <pre><h2>Dynamic Pathfinding Agent</h2>
-
 HOW TO USE:
   - Draw walls  : left-click and drag on the grid
   - Erase walls : right-click and drag on the grid
   - Use the panel on the right to control everything
-
 KEYBOARD SHORTCUTS:
   SPACE   run search
   R       random maze
