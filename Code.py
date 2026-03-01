@@ -338,3 +338,82 @@ class PathfindingApp:
         self.goal_cell  = (self.num_rows - 1, self.num_cols - 1)
 
         self._reset_search()
+
+    # Dynamic Obstacles
+    def _spawn_obstacles(self):
+        path_cells      = set(self.final_path)
+        path_blocked    = False
+
+        for row in range(self.num_rows):
+            for col in range(self.num_cols):
+                cell = (row, col)
+                if cell in (self.start_cell, self.goal_cell):
+                    continue
+                if self.grid[row][col] == 0 and random.random() < DYN_SPAWN_CHANCE:
+                    self.grid[row][col] = 1
+                    if cell in path_cells:
+                        path_blocked = True
+
+        if path_blocked:
+            self._start_search(from_cell=self.start_cell)
+
+
+    # Drawing helpers
+    def _draw_btn(self, label, rect, color=COLOR_BTN):
+        r = pygame.Rect(rect)
+        pygame.draw.rect(self.screen, color, r, border_radius=4)
+        pygame.draw.rect(self.screen, (160, 160, 160), r, 1, border_radius=4)
+        txt = self.font_sm.render(label, True, COLOR_TEXT)
+        self.screen.blit(txt, txt.get_rect(center=r.center))
+        return r
+
+    def _draw_input(self, key, value, label_text, x, y, w):
+        lbl = self.font_sm.render(label_text, True, COLOR_TEXT)
+        self.screen.blit(lbl, (x, y))
+        y += lbl.get_height() + 2
+
+        focused = (self.focused_input == key)
+        box = pygame.Rect(x, y, w, 22)
+        pygame.draw.rect(self.screen, (90, 90, 130) if focused else (75, 75, 75), box)
+        pygame.draw.rect(self.screen, COLOR_ACCENT if focused else (110, 110, 110), box, 1)
+        content = self.font_sm.render(value + ("|" if focused else ""), True, COLOR_TEXT)
+        self.screen.blit(content, (box.x + 4, box.y + 3))
+        return box, y + box.height + 2  # box height + 2px gap
+
+
+    # Draw the grid
+    def draw_grid(self):
+        cs = self.cell_size
+
+        for row in range(self.num_rows):
+            for col in range(self.num_cols):
+                cell = (row, col)
+                px = col * cs
+                py = row * cs
+
+                # Choose colour based on cell state
+                if self.grid[row][col] == 1:
+                    color = COLOR_WALL
+                elif cell == self.start_cell:
+                    color = COLOR_START
+                elif cell == self.goal_cell:
+                    color = COLOR_GOAL
+                elif cell in self.final_path and self.search_done and not self.no_path_found:
+                    color = COLOR_PATH
+                elif cell in self.frontier:
+                    color = COLOR_FRONTIER
+                elif cell in self.visited:
+                    color = COLOR_VISITED
+                else:
+                    color = COLOR_WHITE
+
+                pygame.draw.rect(self.screen, color, (px, py, cs, cs))
+                pygame.draw.rect(self.screen, COLOR_GRID_LINE, (px, py, cs, cs), 1)
+
+        for cell, letter in [(self.start_cell, "S"), (self.goal_cell, "G")]:
+            row, col = cell
+            cx = col * cs + cs // 2
+            cy = row * cs + cs // 2
+            t = self.font_md.render(letter, True, COLOR_TEXT)
+            self.screen.blit(t, t.get_rect(center=(cx, cy)))
+
